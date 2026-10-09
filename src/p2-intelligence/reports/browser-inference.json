@@ -1,0 +1,62 @@
+{
+  "timestamp": "2026-10-09T12:27:01.679Z",
+  "input": "Synthetic gray pixels; no real face or webcam. This measures runtime only, not classification accuracy.",
+  "externalNetworkBlocked": true,
+  "lifecycle": {
+    "started": true,
+    "paused": true,
+    "resumed": true,
+    "stopped": true,
+    "cancelled": true,
+    "denied": true,
+    "recordingBytes": 415,
+    "recordingKeptSourceAlive": true
+  },
+  "loadMs": 2869.5,
+  "results": [
+    {
+      "type": "result",
+      "id": 0,
+      "scores": {
+        "neutral": 0.5754252672195435,
+        "angry": 0.09455524384975433,
+        "surprise": 0.09234769642353058,
+        "happy": 0.08162279427051544,
+        "fear": 0.07973739504814148,
+        "sad": 0.06339488178491592,
+        "disgust": 0.012916717678308487
+      },
+      "latencyMs": 1953.5
+    },
+    {
+      "type": "result",
+      "id": 1,
+      "scores": {
+        "neutral": 0.5754252672195435,
+        "angry": 0.09455524384975433,
+        "surprise": 0.09234769642353058,
+        "happy": 0.08162279427051544,
+        "fear": 0.07973739504814148,
+        "sad": 0.06339488178491592,
+        "disgust": 0.012916717678308487
+      },
+      "latencyMs": 976.7000000029802
+    },
+    {
+      "type": "result",
+      "id": 2,
+      "scores": {
+        "neutral": 0.5754252672195435,
+        "angry": 0.09455524384975433,
+        "surprise": 0.09234769642353058,
+        "happy": 0.08162279427051544,
+        "fear": 0.07973739504814148,
+        "sad": 0.06339488178491592,
+        "disgust": 0.012916717678308487
+      },
+      "latencyMs": 695.3999999910593
+    }
+  ],
+  "noFaceCount": 0,
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0"
+}
