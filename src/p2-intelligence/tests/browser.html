@@ -1,0 +1,63 @@
+<!doctype html><html><head><title>P2 automated inference check</title></head><body><p>P2 test harness: synthetic input only.</p>
+<script type="module">
+import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import { CameraTracker } from '../engine/input/cameraTracker';
+import { MockStateBridge } from '../engine/bridge/mockStateBridge';
+import { recordBackup } from '../engine/input/recordBackup';
+window.runLifecycleCheck = async () => {
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 224;
+  canvas.getContext('2d').fillRect(0, 0, 224, 224);
+  const stream = canvas.captureStream(10);
+  const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  const video = document.createElement('video'); video.muted = true; document.body.append(video);
+  const bridge = new MockStateBridge();
+  const tracker = new CameraTracker(bridge);
+  try {
+    navigator.mediaDevices.getUserMedia = async () => stream;
+    await tracker.start(video);
+    const started = bridge.read().ui.inputSource === 'camera';
+    tracker.pause(true); const paused = bridge.read().ui.trackingPaused;
+    tracker.pause(false); const resumed = !bridge.read().ui.trackingPaused;
+    const blob = await recordBackup(video, { consent: true, durationMs: 1000 });
+    const recordingKeptSourceAlive = stream.getVideoTracks()[0].readyState === 'live';
+    tracker.stop();
+    const stopped = stream.getTracks().every(track => track.readyState === 'ended') && video.srcObject === null;
+    const lateStream = canvas.captureStream(10);
+    let grant;
+    navigator.mediaDevices.getUserMedia = () => new Promise(resolve => { grant = resolve; });
+    const pending = tracker.start(video); tracker.stop(); grant(lateStream); await pending;
+    const cancelled = lateStream.getTracks().every(track => track.readyState === 'ended') && bridge.read().ui.inputSource === 'demo';
+    navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('Test denial', 'NotAllowedError'); };
+    let denied = false;
+    try { await tracker.start(video); } catch { denied = bridge.read().ui.inputSource === 'demo' && video.srcObject === null; }
+    return { started, paused, resumed, stopped, cancelled, denied, recordingBytes: blob.size, recordingKeptSourceAlive };
+  } finally { tracker.stop(); stream.getTracks().forEach(t => t.stop()); navigator.mediaDevices.getUserMedia = original; video.remove(); }
+};
+window.runInferenceCheck = async () => {
+  const worker = new Worker(new URL('../engine/affect/classifier.worker.ts', import.meta.url), { type: 'module' });
+  const boot = performance.now();
+  const receive = () => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('worker timed out')), 180000);
+    worker.onmessage = ({data}) => { clearTimeout(timer); data.type === 'error' ? reject(new Error(data.message)) : resolve(data); };
+    worker.onerror = event => { clearTimeout(timer); reject(new Error(event.message)); };
+  });
+  let landmarker;
+  try {
+    let pending = receive(); worker.postMessage({}); await pending;
+    const loadMs = performance.now() - boot;
+    const results = [];
+    for (let i = 0; i < 3; i++) {
+      const pixels = new Uint8ClampedArray(224*224*4);
+      for (let p = 0; p < pixels.length; p += 4) { pixels[p] = pixels[p+1] = pixels[p+2] = 128; pixels[p+3] = 255; }
+      pending = receive(); worker.postMessage({ id: i, pixels: pixels.buffer, width: 224, height: 224 }, [pixels.buffer]);
+      results.push(await pending);
+    }
+    const vision = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
+    landmarker = await FaceLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: '/models/face_landmarker.task', delegate: 'CPU' }, runningMode: 'IMAGE', numFaces: 2, outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true });
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 224;
+    canvas.getContext('2d').fillRect(0, 0, 224, 224);
+    const faces = landmarker.detect(canvas).faceLandmarks.length;
+    return { loadMs, results, noFaceCount: faces, userAgent: navigator.userAgent };
+  } finally { worker.terminate(); landmarker?.close(); }
+};
+</script></body></html>
